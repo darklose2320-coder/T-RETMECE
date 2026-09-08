@@ -27,11 +27,9 @@ intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 # --- OYUN AYARLARI VE KANALLAR ---
-# Kendi sunucundaki oyun kanalı ID'lerini buraya yazacaksın:
-KELIME_KANAL_ID = 123456789012345678  # Kelime türetmece kanalının ID'si
-FUTBOL_KANAL_ID = 987654321098765432  # Futbolcu türetmece kanalının ID'si
+KELIME_KANAL_ID = 1546753719658356878  # Kelime türetmece kanalı
+FUTBOL_KANAL_ID = 1546753829087871036  # Futbolcu türetmece kanalı
 
-# Oyun Verilerini Tutacak Sözlükler
 kelime_oyunu = {
     "son_harf": None,
     "kullanilanlar": set()
@@ -42,23 +40,21 @@ futbol_oyunu = {
     "kullanilanlar": set()
 }
 
-# TDK Sözlük Kontrol Fonksiyonu
 def tdk_kelime_kontrol(kelime):
     try:
         response = requests.get(f"https://sozluk.gov.tr/gts?ara={kelime.lower()}")
         if response.status_code == 200:
             data = response.json()
-            if isinstance(data, list) and len(data) > 0:
+            if isinstance(data, list) and len(data > 0):
                 return True
     except Exception:
         pass
     return False
 
-# Örnek Futbolcu Listesi (Burayı dilediğin kadar genişletebilirsin)
 FUTBOLCULAR = {
     "messi", "ronaldo", "mbappe", "haaland", "neymar", "arda", "benzema", 
     "de bruyne", "kante", "lewandowski", "salah", "pele", "maradona", "zidane",
-    "icardi", "osimhen", "ferdi", "kerem", "muslera", "torreira", "havertz"
+    "icardi", "osimhen", "ferdi", "kerem", "muslera", "torreira", "havertz", "asensio"
 }
 
 @bot.event
@@ -71,55 +67,46 @@ async def on_message(message):
         return
 
     # --- 1. KELİME TÜRETMECE OYUNU ---
-    if message.channel.id == "1546753719658356878":
+    if message.channel.id == KELIME_KANAL_ID:
         kelime = message.content.strip().lower()
 
-        # Tek kelime kontrolü
         if len(kelime.split()) > 1:
             await hata_ver(message, "Lütfen sadece tek bir kelime yazın!")
             return
 
-        # Son harf kontrolü
         if kelime_oyunu["son_harf"] is not None and kelime[0] != kelime_oyunu["son_harf"]:
             await hata_ver(message, f"Kelime '{kelime_oyunu['son_harf']}' harfi ile başlamalı!")
             return
 
-        # Daha önce yazıldı mı?
         if kelime in kelime_oyunu["kullanilanlar"]:
             await hata_ver(message, "Bu kelime daha önce yazıldı!")
             return
 
-        # TDK Kontrolü
         if not tdk_kelime_kontrol(kelime):
             await hata_ver(message, "Bu kelime TDK sözlüğünde geçmiyor!")
             return
 
-        # Doğru hamle
         kelime_oyunu["kullanilanlar"].add(kelime)
         kelime_oyunu["son_harf"] = kelime[-1]
         await message.add_reaction("✅")
         return
 
     # --- 2. FUTBOLCU TÜRETMECE OYUNU ---
-    if message.channel.id == "1546753829087871036":
+    if message.channel.id == FUTBOL_KANAL_ID:
         futbolcu = message.content.strip().lower()
 
-        # Son harf kontrolü
         if futbol_oyunu["son_harf"] is not None and futbolcu[0] != futbol_oyunu["son_harf"]:
             await hata_ver(message, f"Futbolcu adı '{futbol_oyunu['son_harf']}' harfi ile başlamalı!")
             return
 
-        # Daha önce yazıldı mı?
         if futbolcu in futbol_oyunu["kullanilanlar"]:
             await hata_ver(message, "Bu futbolcu zaten yazıldı!")
             return
 
-        # Listede var mı?
         if futbolcu not in FUTBOLCULAR:
             await hata_ver(message, "Böyle tanınmış bir futbolcu listede bulunamadı!")
             return
 
-        # Doğru hamle
         futbol_oyunu["kullanilanlar"].add(futbolcu)
         futbol_oyunu["son_harf"] = futbolcu[-1]
         await message.add_reaction("✅")
@@ -127,7 +114,6 @@ async def on_message(message):
 
     await bot.process_commands(message)
 
-# Hatalı mesajları silip uyarı veren yardımcı fonksiyon
 async def hata_ver(message, sebep):
     try:
         await message.delete()
@@ -135,7 +121,7 @@ async def hata_ver(message, sebep):
         pass
     
     uyari = await message.channel.send(f"{message.author.mention} ❌ {sebep}")
-    await asyncio.sleep(4)  # Uyarı mesajı 4 saniye sonra silinir
+    await asyncio.sleep(4)
     try:
         await uyari.delete()
     except discord.Forbidden:
