@@ -32,11 +32,13 @@ FUTBOL_KANAL_ID = 1546753829087871036  # Futbolcu türetmece kanalı
 
 kelime_oyunu = {
     "son_harf": None,
+    "son_yazan_id": None, # Son yazan kişinin ID'sini tutmak için
     "kullanilanlar": set()
 }
 
 futbol_oyunu = {
     "son_harf": None,
+    "son_yazan_id": None, # Son yazan kişinin ID'sini tutmak için
     "kullanilanlar": set()
 }
 
@@ -45,7 +47,6 @@ def tdk_kelime_kontrol(kelime):
         response = requests.get(f"https://sozluk.gov.tr/gts?ara={kelime.lower()}")
         if response.status_code == 200:
             data = response.json()
-            # Düzeltildi: len(data) > 0 şeklinde kontrol ediliyor
             if isinstance(data, list) and len(data) > 0:
                 return True
     except Exception as e:
@@ -75,6 +76,11 @@ async def on_message(message):
             await hata_ver(message, "Lütfen sadece tek bir kelime yazın!")
             return
 
+        # Üst üste yazma kontrolü
+        if kelime_oyunu["son_yazan_id"] == message.author.id:
+            await hata_ver(message, "Peş peşe kelime yazamazsın, başkasına şans vermelisin!")
+            return
+
         if kelime_oyunu["son_harf"] is not None and kelime[0] != kelime_oyunu["son_harf"]:
             await hata_ver(message, f"Kelime '{kelime_oyunu['son_harf']}' harfi ile başlamalı!")
             return
@@ -87,14 +93,21 @@ async def on_message(message):
             await hata_ver(message, "Bu kelime TDK sözlüğünde geçmiyor!")
             return
 
+        # Doğru hamle - Kaydet
         kelime_oyunu["kullanilanlar"].add(kelime)
         kelime_oyunu["son_harf"] = kelime[-1]
+        kelime_oyunu["son_yazan_id"] = message.author.id
         await message.add_reaction("✅")
         return
 
     # --- 2. FUTBOLCU TÜRETMECE OYUNU ---
     if message.channel.id == FUTBOL_KANAL_ID:
         futbolcu = message.content.strip().lower()
+
+        # Üst üste yazma kontrolü
+        if futbol_oyunu["son_yazan_id"] == message.author.id:
+            await hata_ver(message, "Peş peşe futbolcu yazamazsın, başkasına şans vermelisin!")
+            return
 
         if futbol_oyunu["son_harf"] is not None and futbolcu[0] != futbol_oyunu["son_harf"]:
             await hata_ver(message, f"Futbolcu adı '{futbol_oyunu['son_harf']}' harfi ile başlamalı!")
@@ -108,8 +121,10 @@ async def on_message(message):
             await hata_ver(message, "Böyle tanınmış bir futbolcu listede bulunamadı!")
             return
 
+        # Doğru hamle - Kaydet
         futbol_oyunu["kullanilanlar"].add(futbolcu)
         futbol_oyunu["son_harf"] = futbolcu[-1]
+        futbol_oyunu["son_yazan_id"] = message.author.id
         await message.add_reaction("✅")
         return
 
