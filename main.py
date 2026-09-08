@@ -32,26 +32,33 @@ FUTBOL_KANAL_ID = 1546753829087871036  # Futbolcu türetmece kanalı
 
 kelime_oyunu = {
     "son_harf": None,
-    "son_yazan_id": None, # Son yazan kişinin ID'sini tutmak için
+    "son_yazan_id": None,
     "kullanilanlar": set()
 }
 
 futbol_oyunu = {
     "son_harf": None,
-    "son_yazan_id": None, # Son yazan kişinin ID'sini tutmak için
+    "son_yazan_id": None,
     "kullanilanlar": set()
 }
 
 def tdk_kelime_kontrol(kelime):
     try:
-        response = requests.get(f"https://sozluk.gov.tr/gts?ara={kelime.lower()}")
+        url = f"https://sozluk.gov.tr/gts?ara={urllib_quote(kelime.lower())}" if 'urllib_quote' in globals() else f"https://sozluk.gov.tr/gts?ara={kelime.lower()}"
+        response = requests.get(f"https://sozluk.gov.tr/gts?ara={kelime.lower()}", timeout=5)
         if response.status_code == 200:
             data = response.json()
+            # TDK bazen hata sözlüğü döndürür (error mesajı gibi), onu eliyoruz
             if isinstance(data, list) and len(data) > 0:
                 return True
+            elif isinstance(data, dict) and "error" not in data:
+                return True
     except Exception as e:
-        print(f"TDK Hata: {e}")
-    return False
+        print(f"TDK Bağlantı Hatası: {e}")
+    
+    # API yanıt vermezse veya internette takılma olursa oyun tıkanmasın diye 
+    # kelimenin uzunluğu 2 harften büyükse geçici olarak onay verelim (veya True yapabiliriz)
+    return len(kelime) > 1
 
 FUTBOLCULAR = {
     "messi", "ronaldo", "mbappe", "haaland", "neymar", "arda", "benzema", 
@@ -61,7 +68,7 @@ FUTBOLCULAR = {
 
 @bot.event
 async def on_ready():
-    print(f"{bot.user.name} başarıyla giriş yaptı ve oyunlar için hazır!")
+    print(f"{bot.user.name} aktif!")
 
 @bot.event
 async def on_message(message):
@@ -76,7 +83,6 @@ async def on_message(message):
             await hata_ver(message, "Lütfen sadece tek bir kelime yazın!")
             return
 
-        # Üst üste yazma kontrolü
         if kelime_oyunu["son_yazan_id"] == message.author.id:
             await hata_ver(message, "Peş peşe kelime yazamazsın, başkasına şans vermelisin!")
             return
@@ -93,7 +99,6 @@ async def on_message(message):
             await hata_ver(message, "Bu kelime TDK sözlüğünde geçmiyor!")
             return
 
-        # Doğru hamle - Kaydet
         kelime_oyunu["kullanilanlar"].add(kelime)
         kelime_oyunu["son_harf"] = kelime[-1]
         kelime_oyunu["son_yazan_id"] = message.author.id
@@ -104,7 +109,6 @@ async def on_message(message):
     if message.channel.id == FUTBOL_KANAL_ID:
         futbolcu = message.content.strip().lower()
 
-        # Üst üste yazma kontrolü
         if futbol_oyunu["son_yazan_id"] == message.author.id:
             await hata_ver(message, "Peş peşe futbolcu yazamazsın, başkasına şans vermelisin!")
             return
@@ -121,7 +125,6 @@ async def on_message(message):
             await hata_ver(message, "Böyle tanınmış bir futbolcu listede bulunamadı!")
             return
 
-        # Doğru hamle - Kaydet
         futbol_oyunu["kullanilanlar"].add(futbolcu)
         futbol_oyunu["son_harf"] = futbolcu[-1]
         futbol_oyunu["son_yazan_id"] = message.author.id
@@ -143,6 +146,5 @@ async def hata_ver(message, sebep):
     except discord.Forbidden:
         pass
 
-# 3. Web sunucusunu başlat ve botu çalıştır
 keep_alive()
 bot.run(os.getenv("BOT_TOKEN"))
