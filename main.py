@@ -45,10 +45,11 @@ def tdk_kelime_kontrol(kelime):
         response = requests.get(f"https://sozluk.gov.tr/gts?ara={kelime.lower()}")
         if response.status_code == 200:
             data = response.json()
-            if isinstance(data, list) and len(data > 0):
+            # Düzeltildi: len(data) > 0 şeklinde kontrol ediliyor
+            if isinstance(data, list) and len(data) > 0:
                 return True
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"TDK Hata: {e}")
     return False
 
 FUTBOLCULAR = {
